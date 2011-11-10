@@ -1,0 +1,197 @@
+<script src="Leaflet/dist/leaflet.js"></script>
+<div id="map" style="top:0; bottom:0; left:0; right:0; position:absolute;"></div> <!-- width equals available horizontal space by default -->
+<!--<div style="position:absolute; left: 0; right:0; bottom:0; height:80px; outline:1px solid aqua;">-->
+<div id="twitterFall" style="width:200px; position:absolute; height:20px;right:0; background-color:black; z-index: 999; overflow:auto;"> </div>
+
+</div>
+
+<script type="text/javascript"> 
+  
+  /** Converts numeric degrees to radians */
+  if (typeof(Number.prototype.toRad) === "undefined") {
+    Number.prototype.toRad = function() {
+      return this * Math.PI / 180;
+    }
+  }
+  
+  /** Converts numeric degrees to radians */
+  if (typeof(Number.prototype.toDeg) === "undefined") {
+    Number.prototype.toDeg = function() {
+      var d = 360/(2*Math.PI);
+      return this * d;
+    }
+  }
+  
+  var io = io.connect();
+  
+  $(function() {
+    
+    var map = new L.Map('map');
+    
+		var t = $.template('\
+      <div class="stream-item ${marker_class}"> \
+        <div class="tweet"> \
+          <span style="padding-left:10px; float:left; width:50px; "> \
+            <img src="${img}" /> \
+          </span> \
+          <span style="vertical-align:top; float:left;font-size:11px;  padding-left:10px; width:350px;"> \
+            <b><a href="http://www.twitter.com/${user}" >${user}</a></b> <br />${text} <br /> \
+            <span style="font-size:10px;">${created_at}</span> \
+          </span> \
+        </div> \
+      </div> \
+    ');
+    
+  
+		var cloudmadeUrl = 'http://{s}.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/997/256/{z}/{x}/{y}.png',
+			cloudmadeAttribution = 'Map data &copy; 2011 OpenStreetMap contributors, Imagery &copy; 2011 CloudMade',
+			cloudmade = new L.TileLayer(cloudmadeUrl, {maxZoom: 18, attribution: cloudmadeAttribution});
+		
+		
+		pos = new L.LatLng(40.770012,-73.973694)
+		
+		map.setView(pos, 13).addLayer(cloudmade);
+		
+		var markerLocation = pos,
+    marker = new L.Marker(markerLocation);
+		
+		map.addLayer(marker);
+		
+		
+	
+/*  var p1 = new L.LatLng(51.509, -0.08),
+			p2 = new L.LatLng(51.503, -0.06),
+			p3 = new L.LatLng(51.51, -0.047),
+			polygonPoints = [p1, p2, p3],
+			polygon = new L.Polygon(polygonPoints);
+		
+		polygon.bindPopup("I am a polygon.");
+		
+		map.addLayer(polygon);
+
+*/
+    io.on('mapTweet', function ( tweet ){
+      
+      
+     
+      
+      $('#twitterFall').append( t , {
+           img: tweet.profile_image_url,
+           user: tweet.from_user,
+           text: tweet.text,
+           created_at: tweet.created_at
+      });
+      
+      if( tweet.geo ){
+      
+        //console.log( tweet.geo )
+        var markerLocation = pos,
+        marker = new L.Marker(markerLocation);
+    		pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1])
+    		map.addLayer(marker);
+      
+      }
+      
+    
+    });
+    
+    
+    var coords = [];
+    
+    var calculateDistance = function( point1, point2){
+    
+      console.log( 'calculate distance')
+      var lat1 = point1[0], lat2 = point2[0], lon1 = point1[1],lon2 = point2[1]
+    
+      var R = 6371; // km
+      var dLat = (lat2-lat1).toRad();
+      var dLon = (lon2-lon1).toRad();
+      var lat1 = lat1.toRad();
+      var lat2 = lat2.toRad();
+      
+      var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+      var d = R * c;
+      
+      return d
+    
+    
+    }
+    
+    var addCircle = function(lat, lng, r){
+    
+      console.log( 'adding circle lat = '+ lat + ', lng = '+lng)
+      var s = new L.LatLng(lat, lng), 
+          circle = new L.CircleMarker(s, {
+            stroke: true,
+            radius: r
+          });
+      
+      // Mark where we pointed
+      map.addLayer( circle );
+    
+    }
+    
+    
+    addCircle(40, -74, 10);
+    addCircle(41, -73, 10);
+    
+    // Nate's code
+    map.on('click', function (e) {
+      
+      var point = [
+        e.latlng.lat, 
+        e.latlng.lng
+      ];
+      
+      console.log( point )
+            
+      var latlng = new L.LatLng(point[0], point[1]);
+      
+      var circle = new L.CircleMarker(latlng, {
+        stroke: true,
+        radius: 10
+      });
+      
+      // Mark where we pointed
+      map.addLayer( circle );
+      
+      console.log("coords = %o", coords)
+      coords.push(point);
+      
+      // Another WIP, maybe track distance?
+      if (coords.length > 1) {
+        clickNum = coords.length
+        
+        //console.log( coords[0] )
+        var distance = calculateDistance(coords[0] , coords[coords.length - 1] )
+        console.log( distance )
+        console.log('click number ' + clickNum)
+        
+         var start = new L.LatLng(coords[coords.length - 2][0], coords[coords.length - 2][1]),
+              end = new L.LatLng(coords[coords.length - 1][0], coords[coords.length - 1][1]),
+              polyline = new L.Polyline( [start, end], {color: 'blue'});
+              
+              map.addLayer(polyline); 
+        
+      }else{
+      
+        //this is the first click
+        
+        console.log('first click')
+      
+      }
+      
+
+
+        
+      
+            
+      console.log("Added " + point[0] + ", " + point[1]);
+
+    });
+        
+  });
+  
+</script>  
