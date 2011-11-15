@@ -1,9 +1,14 @@
-<script src="Leaflet/dist/leaflet.js"></script>
-<div id="map" style="top:0; bottom:0; left:0; right:0; position:absolute;"></div> <!-- width equals available horizontal space by default -->
-<!--<div style="position:absolute; left: 0; right:0; bottom:0; height:80px; outline:1px solid aqua;">-->
-<div id="twitterFall" style="width:200px; position:absolute; height:20px;right:0; background-color:black; z-index: 999; overflow:auto;"> </div>
+<div id="map" style="top:0; bottom:0; left:0; right:0; position:absolute;"></div>
+
+<div id="settings"> 
+
+  <div id="toggle-edit">Toggle</div>
+  <div id="save-region">Save</div>
+  <div id="log"></div>
 
 </div>
+
+<script src="Leaflet/dist/leaflet.js"></script>
 
 <script type="text/javascript"> 
   
@@ -25,173 +30,123 @@
   var io = io.connect();
   
   $(function() {
-    
-    var map = new L.Map('map');
-    
-		var t = $.template('\
-      <div class="stream-item ${marker_class}"> \
-        <div class="tweet"> \
-          <span style="padding-left:10px; float:left; width:50px; "> \
-            <img src="${img}" /> \
-          </span> \
-          <span style="vertical-align:top; float:left;font-size:11px;  padding-left:10px; width:350px;"> \
-            <b><a href="http://www.twitter.com/${user}" >${user}</a></b> <br />${text} <br /> \
-            <span style="font-size:10px;">${created_at}</span> \
-          </span> \
-        </div> \
-      </div> \
-    ');
-    
-  
-		var cloudmadeUrl = 'http://{s}.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/997/256/{z}/{x}/{y}.png',
-			cloudmadeAttribution = 'Map data &copy; 2011 OpenStreetMap contributors, Imagery &copy; 2011 CloudMade',
-			cloudmade = new L.TileLayer(cloudmadeUrl, {maxZoom: 18, attribution: cloudmadeAttribution});
-		
-		
-		pos = new L.LatLng(40.770012,-73.973694)
-		
+    var cloudmadeUrl = 'http://{s}.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/997/256/{z}/{x}/{y}.png', 
+    cloudmadeAttribution = '',
+    cloudmade = new L.TileLayer(cloudmadeUrl, {
+      maxZoom: 18, 
+      attribution: cloudmadeAttribution
+    }),
+    calculate = {
+      distance: function( point1, point2 ){
+        var lat1 = point1[0], lat2 = point2[0], lon1 = point1[1], lon2 = point2[1],
+            R = 6371, 
+            dLat = (lat2-lat1).toRad(), dLon = (lon2-lon1).toRad(),
+            lat1 = lat1.toRad(), lat2 = lat2.toRad(),
+            a = Math.sin(dLat/2) * Math.sin(dLat/2) + 
+                Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2),
+            c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)),
+            d = R * c;
+        return d
+      }
+    },
+    user = {
+      _e: false, _h: [],
+      isTraveling: function(){
+       return this._h.length > 0 ? true : false
+      },
+      toggleEdit: function(){
+        this._e = !this._e
+      },
+      canEdit: function(){
+        return this._e
+      },
+      record: function( p ){
+        this._h.push( p )
+      },
+      clearHistory: function(){
+        this._h = []
+      },
+      getHistoryByOffset: function( offset ){
+        return this._h[this._h.length - offset] ? this._h[this._h.length - offset] : null
+      },
+      getHistory: function(){
+        return this._h
+      },
+      getHistoryByIndex: function( index ){
+        return this._h[index] ? this._h[index] : null
+      },
+      log: function( d ){
+        $('#log').text( d )
+      }
+    },
+    map = new L.Map('map'),
+    pos = new L.LatLng(40.770012,-73.973694);
 		map.setView(pos, 13).addLayer(cloudmade);
 		
-		var markerLocation = pos,
-    marker = new L.Marker(markerLocation);
-		
-		map.addLayer(marker);
-		
-		
-	
-/*  var p1 = new L.LatLng(51.509, -0.08),
-			p2 = new L.LatLng(51.503, -0.06),
-			p3 = new L.LatLng(51.51, -0.047),
-			polygonPoints = [p1, p2, p3],
-			polygon = new L.Polygon(polygonPoints);
-		
-		polygon.bindPopup("I am a polygon.");
-		
-		map.addLayer(polygon);
-
-*/
-    io.on('mapTweet', function ( tweet ){
-      
-      
-     
-      
-      $('#twitterFall').append( t , {
-           img: tweet.profile_image_url,
-           user: tweet.from_user,
-           text: tweet.text,
-           created_at: tweet.created_at
-      });
-      
-      if( tweet.geo ){
-      
-        //console.log( tweet.geo )
-        var markerLocation = pos,
-        marker = new L.Marker(markerLocation);
-    		pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1])
-    		map.addLayer(marker);
-      
-      }
-      
-    
-    });
-    
-    
-    var coords = [];
-    
-    var calculateDistance = function( point1, point2){
-    
-      console.log( 'calculate distance')
-      var lat1 = point1[0], lat2 = point2[0], lon1 = point1[1],lon2 = point2[1]
-    
-      var R = 6371; // km
-      var dLat = (lat2-lat1).toRad();
-      var dLon = (lon2-lon1).toRad();
-      var lat1 = lat1.toRad();
-      var lat2 = lat2.toRad();
-      
-      var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
-      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-      var d = R * c;
-      
-      return d
-    
-    
-    }
-    
-    var addCircle = function(lat, lng, r){
-    
-      console.log( 'adding circle lat = '+ lat + ', lng = '+lng)
-      var s = new L.LatLng(lat, lng), 
-          circle = new L.CircleMarker(s, {
+    map.addCircle = function( lat, lng, r ){
+      var latlng = new L.LatLng(lat, lng), 
+          circle = new L.CircleMarker(latlng, {
             stroke: true,
             radius: r
           });
-      
-      // Mark where we pointed
-      map.addLayer( circle );
-    
+      this.addLayer( circle );
+      return circle
     }
     
+    map.addPolyline = function( s, e ){
+      var polyline = new L.Polyline([new L.LatLng(s.lat,s.lng),new L.LatLng(e.lat, e.lng)],{color: 'blue'});
+      this.addLayer(polyline)
+      return polyline
+    }
     
-    addCircle(40, -74, 10);
-    addCircle(41, -73, 10);
-    
-    // Nate's code
     map.on('click', function (e) {
+      if(user.canEdit()){
       
-      var point = [
-        e.latlng.lat, 
-        e.latlng.lng
-      ];
-      
-      console.log( point )
-            
-      var latlng = new L.LatLng(point[0], point[1]);
-      
-      var circle = new L.CircleMarker(latlng, {
-        stroke: true,
-        radius: 10
-      });
-      
-      // Mark where we pointed
-      map.addLayer( circle );
-      
-      console.log("coords = %o", coords)
-      coords.push(point);
-      
-      // Another WIP, maybe track distance?
-      if (coords.length > 1) {
-        clickNum = coords.length
+        var circle = this.addCircle(e.latlng.lat, e.latlng.lng, 10)
+        if(user.isTraveling()){
+          user.record({
+            "lat" : e.latlng.lat, 
+            "lng" : e.latlng.lng,
+            "circle" : circle 
+          })
+          var polyline = this.addPolyline( user.getHistoryByOffset(2), user.getHistoryByOffset(1) )
+          user.getHistoryByOffset(1).polyline = polyline
+        }else{
+          user.record({
+            "lat" : e.latlng.lat, 
+            "lng" : e.latlng.lng,
+            "circle" : circle 
+          })
+        }
         
-        //console.log( coords[0] )
-        var distance = calculateDistance(coords[0] , coords[coords.length - 1] )
-        console.log( distance )
-        console.log('click number ' + clickNum)
-        
-         var start = new L.LatLng(coords[coords.length - 2][0], coords[coords.length - 2][1]),
-              end = new L.LatLng(coords[coords.length - 1][0], coords[coords.length - 1][1]),
-              polyline = new L.Polyline( [start, end], {color: 'blue'});
-              
-              map.addLayer(polyline); 
-        
-      }else{
-      
-        //this is the first click
-        
-        console.log('first click')
-      
       }
-      
-
-
-        
-      
-            
-      console.log("Added " + point[0] + ", " + point[1]);
-
     });
-        
+    
+    /* connect to the server */
+    io.on('mapTweet', function ( tweet ){
+      if( tweet.geo ){
+        var markerLocation = pos,
+            marker = new L.Marker(markerLocation),
+    		    pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1])  
+        map.addLayer(marker);
+      }
+    });
+    
+    //click handlers
+    $('#toggle-edit').click(function(){
+      user.toggleEdit()
+    })
+    
+    $('#save-region').click(function(){
+      $.each(user.getHistory(), function(i, p) { 
+        if(p.circle){
+          map.removeLayer(p.circle)
+        }
+        if( p.polyline ){
+          map.removeLayer(p.polyline)
+        }
+      });
+    })
+    
   });
-  
 </script>  

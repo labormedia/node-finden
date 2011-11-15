@@ -1,0 +1,30 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family:'Helvetica Neue', Arial, Helvetica, 'Liberation Sans', FreeSans, sans-serif;
+}
+
+#settings{
+  width:300px; 
+  position:absolute; 
+  top:0; 
+  right:0; 
+  bottom:0; 
+  padding:5px;
+  background-color:black; 
+  z-index: 999; 
+  overflow:auto; 
+  color:white; 
+  opacity: 0.6; 
+}
+#settings > div{
+
+  float: left;
+  padding: 10px 5px 10px 5px;
+  
+}
+#toggle-options{
+
+
+}
