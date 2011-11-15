@@ -99,9 +99,15 @@
       return polyline
     }
     
+    map.addPolygon = function( p ){
+      console.log('add polygon')
+      console.log( p )
+      var polygon = new L.Polygon(p, {color: 'blue'} );
+      this.addLayer(polygon)
+    }
+    
     map.on('click', function (e) {
       if(user.canEdit()){
-      
         var circle = this.addCircle(e.latlng.lat, e.latlng.lng, 10)
         if(user.isTraveling()){
           user.record({
@@ -118,7 +124,6 @@
             "circle" : circle 
           })
         }
-        
       }
     });
     
@@ -138,12 +143,15 @@
     })
     
     $('#save-region').click(function(){
-      $.each(user.getHistory(), function(i, p) { 
-        if(p.circle){
-          map.removeLayer(p.circle)
-        }
-        if( p.polyline ){
-          map.removeLayer(p.polyline)
+      var history = user.getHistory(),
+          polyPoints = [];
+      $.each(history, function(i, p) {
+       
+        
+        polyPoints.push(new L.LatLng(p.lat, p.lng)) 
+        
+        if( i >= history.length -1 ){
+          map.addPolygon(polyPoints)
         }
       });
     })
