@@ -33,7 +33,7 @@ var t = new twitter({
     access_token_secret: '60cCuFBx6RFdCGgO6yFIQtscRrr5ACOpjrK8OppJw'
 });
 
-/*t.stream('statuses/filter', {'locations':'-74,40,-73,41'} , function( stream ) {
+t.stream('statuses/filter', {'locations':'-74,40,-73,41'} , function( stream ) {
 
     io.sockets.on('connection', function ( socket ) {
 
@@ -44,6 +44,6 @@ var t = new twitter({
       });
 
     })
-})*/
+})
 
 

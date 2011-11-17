@@ -47,10 +47,30 @@
             c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)),
             d = R * c;
         return d
+      },
+      pointInPolygon: function(o,lat,lon){
+        var inPoly=false;
+        console.log( 'calculating point in polygon' )
+        $.each(o, function(k, p) {
+          var i, j=p._latlngs.length-1, oP = p._latlngs;
+          for (i=0; i< oP.length; i++){
+            if (oP[i].lng<lon && oP[j].lng>=lon || oP[j].lng<lon && oP[i].lng>=lon){
+              inPoly=!inPoly; 
+            }
+            /*if (oP[i].lng<lon && oP[j].lng>=lon || oP[j].lng<lon && oP[i].lng>=lon){
+              if (oP[i].lat+(lon-oP[i].lng)/(oP[j].lng-oP[i].lng)*(oP[j].lat-oP[i].lat)<lat){
+                inPoly=!inPoly; 
+              }
+            }*/
+            j=i; 
+          }
+        })
+        
+        return inPoly;
       }
     },
     user = {
-      _e: false, _h: [],
+      _e: false, _h: [], _p:[],
       isTraveling: function(){
        return this._h.length > 0 ? true : false
       },
@@ -60,20 +80,30 @@
       canEdit: function(){
         return this._e
       },
+      hasPolygons: function(){
+        return this._p.length > 0 ? true : false
+      },
+      getPolygons: function(){
+        return this._p
+      },
       record: function( p ){
         this._h.push( p )
       },
       clearHistory: function(){
         this._h = []
       },
-      getHistoryByOffset: function( offset ){
-        return this._h[this._h.length - offset] ? this._h[this._h.length - offset] : null
-      },
       getHistory: function(){
         return this._h
       },
-      getHistoryByIndex: function( index ){
-        return this._h[index] ? this._h[index] : null
+      getHistoryByIndex: function(o){
+        return this._h[o] ? this._h[o] : null
+      },
+      getHistoryByOffset: function( offset ){
+        return this._h[this._h.length - offset] ? this._h[this._h.length - offset] : null
+      },
+      storePolygon: function(o){
+        this._p.push(o)
+        console.log(this._p)
       },
       log: function( d ){
         $('#log').text( d )
@@ -81,9 +111,10 @@
     },
     map = new L.Map('map'),
     pos = new L.LatLng(40.770012,-73.973694);
+    
 		map.setView(pos, 13).addLayer(cloudmade);
 		
-    map.addCircle = function( lat, lng, r ){
+    map.spawnCircle = function( lat, lng, r ){
       var latlng = new L.LatLng(lat, lng), 
           circle = new L.CircleMarker(latlng, {
             stroke: true,
@@ -100,15 +131,14 @@
     }
     
     map.addPolygon = function( p ){
-      console.log('add polygon')
-      console.log( p )
       var polygon = new L.Polygon(p, {color: 'blue'} );
       this.addLayer(polygon)
+      return polygon
     }
     
     map.on('click', function (e) {
       if(user.canEdit()){
-        var circle = this.addCircle(e.latlng.lat, e.latlng.lng, 10)
+        var circle = this.spawnCircle(e.latlng.lat, e.latlng.lng, 10)
         if(user.isTraveling()){
           user.record({
             "lat" : e.latlng.lat, 
@@ -129,12 +159,21 @@
     
     /* connect to the server */
     io.on('mapTweet', function ( tweet ){
+      
       if( tweet.geo ){
-        var markerLocation = pos,
-            marker = new L.Marker(markerLocation),
-    		    pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1])  
+      
+        if(user.hasPolygons()){
+          var valid = calculate.pointInPolygon(user.getPolygons(), tweet.geo.coordinates[0], tweet.geo.coordinates[1])
+          console.log( valid )
+        }
+        
+        var pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1]), markerLocation = pos,
+            marker = new L.Marker(markerLocation);
+    		     
         map.addLayer(marker);
+        
       }
+      
     });
     
     //click handlers
@@ -146,12 +185,13 @@
       var history = user.getHistory(),
           polyPoints = [];
       $.each(history, function(i, p) {
-       
-        
+      
         polyPoints.push(new L.LatLng(p.lat, p.lng)) 
         
         if( i >= history.length -1 ){
-          map.addPolygon(polyPoints)
+          var polygon = map.addPolygon(polyPoints)
+          user.clearHistory()
+          user.storePolygon( polygon )
         }
       });
     })
