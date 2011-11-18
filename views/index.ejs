@@ -50,22 +50,17 @@
       },
       pointInPolygon: function(o,lat,lon){
         var inPoly=false;
-        console.log( 'calculating point in polygon' )
         $.each(o, function(k, p) {
-          var i, j=p._latlngs.length-1, oP = p._latlngs;
-          for (i=0; i< oP.length; i++){
-            if (oP[i].lng<lon && oP[j].lng>=lon || oP[j].lng<lon && oP[i].lng>=lon){
-              inPoly=!inPoly; 
-            }
-            /*if (oP[i].lng<lon && oP[j].lng>=lon || oP[j].lng<lon && oP[i].lng>=lon){
-              if (oP[i].lat+(lon-oP[i].lng)/(oP[j].lng-oP[i].lng)*(oP[j].lat-oP[i].lat)<lat){
+          var i,points = p._latlngs,j=points.length-1
+          for (i=0; i<points.length; i++) {
+            if (points[i].lng<lon && points[j].lng>=lon || points[j].lng<lon && points[i].lng>=lon){
+              if (points[i].lat + (lon-points[i].lng)/(points[j].lng-points[i].lng)*(points[j].lat - points[i].lat)<lat){
                 inPoly=!inPoly; 
               }
-            }*/
+            }
             j=i; 
           }
         })
-        
         return inPoly;
       }
     },
@@ -163,15 +158,20 @@
       if( tweet.geo ){
       
         if(user.hasPolygons()){
-          var valid = calculate.pointInPolygon(user.getPolygons(), tweet.geo.coordinates[0], tweet.geo.coordinates[1])
-          console.log( valid )
-        }
-        
-        var pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1]), markerLocation = pos,
+          var isValid = calculate.pointInPolygon(user.getPolygons(), tweet.geo.coordinates[0], tweet.geo.coordinates[1])
+
+          if(isValid){
+            var pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1]), markerLocation = pos,
             marker = new L.Marker(markerLocation);
-    		     
-        map.addLayer(marker);
-        
+            map.addLayer(marker);
+          }else{
+          
+            console.log('not valid')
+          
+          }
+          
+        }
+
       }
       
     });
