@@ -7,6 +7,7 @@
   <div id="log"></div>
 
 </div>
+<div id="block"></div>
 
 <script src="Leaflet/dist/leaflet.js"></script>
 
@@ -30,6 +31,7 @@
   var io = io.connect();
   
   $(function() {
+    
     var cloudmadeUrl = 'http://{s}.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/997/256/{z}/{x}/{y}.png', 
     cloudmadeAttribution = '',
     cloudmade = new L.TileLayer(cloudmadeUrl, {
@@ -195,6 +197,21 @@
         }
       });
     })
+    var open = true
+    $('#block').click(function(){
+      if(open){
+        $("#settings").animate({
+          width: "95%",
+        }, 283 );
+
+      }else{
+        $("#settings").animate({
+          width: "0",
+        }, 283 );
+      }
+      open = !open
+    })
+    
     
   });
 </script>  
