@@ -254,6 +254,14 @@ var io = io.connect();
               width: 800
           }
         }).play();
+        dojo.animateProperty({
+          node:"map",
+          properties: {
+              width: view.w - 800
+          }
+        }).play();
+        
+        
         settings.toggleView()
       }
       
