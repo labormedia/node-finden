@@ -106,7 +106,7 @@ var io = io.connect();
       },
       settings: {
         _open: false,
-        _memoryStore:  new dojo.store.Memory({data:[{id: 1, name:"foo"},{id: 2, name:"fee"}]}),
+        _memoryStore:  new dojo.store.Memory({data:[]}),
         toggleView: function(){
           this._open = !this._open
         },
@@ -118,12 +118,26 @@ var io = io.connect();
           this._grid = new dojox.grid.DataGrid({
               store: dataStore = dojo.data.ObjectStore({objectStore: m}),
               structure: [
-                  {name:"Id", field:"id", width: "200px"},
-                  {name:"name", field:"name", width: "200px"},
+                  {name:'id', field: 'id', width:'60px;'},
+                  {name:"Name", field:"name", width: "100px"},
+                  {name:"Followers", field:"followers", width: "100px"},
+                  {name:"Text", field:"text", width: "auto"},
+                  
               ]
           }, "grid"); // make sure you have a target HTML element with this id
           this._grid.startup();
-        }
+        },
+        put: function(o){
+          var obj = {
+            id:o.id,
+            text:o.text,
+            name:o.user.screen_name,
+            followers:o.user.followers_count
+          }
+          this._memoryStore.put(obj)
+          m = this._memoryStore
+          this._grid.setStore(dataStore = dojo.data.ObjectStore({objectStore: m}))
+        },
       }
     },
     map = new L.Map('map'),
@@ -177,7 +191,7 @@ var io = io.connect();
     
     /* connect to the server */
     io.on('mapTweet', function ( tweet ){
-      
+      settings.put(tweet)
       if( tweet.geo ){
         
         if(user.hasPolygons()){
@@ -189,11 +203,15 @@ var io = io.connect();
             map.addLayer(marker);
           }else{
             console.log(tweet)
-            console.log('not valid')
+            
           }
           
         }
 
+      }else{
+        console.log(tweet)
+        
+      
       }
       
     });
@@ -233,7 +251,7 @@ var io = io.connect();
         dojo.animateProperty({
           node:"settings",
           properties: {
-              width: view.w - 50
+              width: 800
           }
         }).play();
         settings.toggleView()

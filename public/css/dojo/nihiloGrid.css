@@ -1,6 +1,6 @@
 .dojoxGrid {
 	position: relative;
-	background-color: #EBEADB;
+	background-color: #333;
 	font-family: Geneva, Arial, Helvetica, sans-serif;
 	-moz-outline-style: none;
 	outline: none;
@@ -91,7 +91,7 @@
 .dojoxGridScrollbox {
 	position: relative;
 	overflow: auto;
-	background-color: white;
+	background-color: #333;
 	width: 100%;
 }
 .dojoxGridContent {

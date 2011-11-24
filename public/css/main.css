@@ -10,7 +10,7 @@ html, body {
 }
 
 #settings{
-  width:40px; 
+  width:0; 
   position:absolute; 
   top:0; 
   right:0; 
@@ -22,6 +22,7 @@ html, body {
 #settings > div{
 
   float: left; 
+  clear:both;
    
 }
 
@@ -32,4 +33,16 @@ height:2em;
 width:2em;
 border: 1px solid black;
 position:absolute;
+}
+#toggle-edit{
+  margin-top: 10px;
+  width:100px;
+  height:10px;
+  outline:1px solid white;
+}
+#save-region{
+  margin-top: 10px;
+  width:100px;
+  height:10px;
+  outline:1px solid white;
 }
