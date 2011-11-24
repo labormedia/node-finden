@@ -5,16 +5,30 @@ same as
 dojo.place('<div>I am new!</div>', oldDomElement, 'last')
 
 */
+/** Converts numeric degrees to radians */
+if (typeof(Number.prototype.toRad) === "undefined") {
+  Number.prototype.toRad = function () {
+    return this * Math.PI / 180;
+  }
+}
+
+/** Converts numeric degrees to radians */
+if (typeof(Number.prototype.toDeg) === "undefined") {
+  Number.prototype.toDeg = function () {
+    var d = 360/(2*Math.PI);
+    return this * d;
+  }
+} 
 
 var io = io.connect();
 
 (function (dojo) {
   dojo.require("dojo.fx");
-  // To use the alternate easing methods,
-  // we need to require the dojo.fx.easing module
   dojo.require("dojo.fx.easing");
-  // dojo.window provides convenient and cross-browser viewport measurements
   dojo.require("dojo.window");
+  dojo.require("dojo.store.Memory");
+  dojo.require("dojox.grid.DataGrid");
+  dojo.require("dojo.data.ObjectStore");
   
   dojo.ready(function () {
     var cloudmadeUrl = 'http://{s}.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/997/256/{z}/{x}/{y}.png', 
@@ -92,16 +106,29 @@ var io = io.connect();
       },
       settings: {
         _open: false,
+        _memoryStore:  new dojo.store.Memory({data:[{id: 1, name:"foo"},{id: 2, name:"fee"}]}),
         toggleView: function(){
           this._open = !this._open
         },
         isOpen: function(){
           return this._open
+        },
+        spawnGrid: function(){
+          var m = this._memoryStore
+          this._grid = new dojox.grid.DataGrid({
+              store: dataStore = dojo.data.ObjectStore({objectStore: m}),
+              structure: [
+                  {name:"Id", field:"id", width: "200px"},
+                  {name:"name", field:"name", width: "200px"},
+              ]
+          }, "grid"); // make sure you have a target HTML element with this id
+          this._grid.startup();
         }
       }
     },
     map = new L.Map('map'),
-    pos = new L.LatLng(40.770012,-73.973694);
+    pos = new L.LatLng(40.770012,-73.973694),
+    settings = user.settings;
     
 		map.setView(pos, 13).addLayer(cloudmade);
 		
@@ -152,7 +179,7 @@ var io = io.connect();
     io.on('mapTweet', function ( tweet ){
       
       if( tweet.geo ){
-      
+        
         if(user.hasPolygons()){
           var isValid = calculate.pointInPolygon(user.getPolygons(), tweet.geo.coordinates[0], tweet.geo.coordinates[1])
 
@@ -171,6 +198,7 @@ var io = io.connect();
       
     });
     
+    settings.spawnGrid()
     //click handlers
     dojo.connect(dojo.byId('toggle-edit'), 'click', this, function(e){
       user.toggleEdit() 
@@ -191,10 +219,8 @@ var io = io.connect();
     
     dojo.connect(dojo.byId('block'), 'click', this, function(e){
     
-      var view = dojo.window.getBox(dojo.doc),
-          settings = user.settings
-      
-      console.log(view)
+      var view = dojo.window.getBox(dojo.doc);
+
       if(settings.isOpen()){
         dojo.animateProperty({
           node:"settings",
@@ -213,26 +239,8 @@ var io = io.connect();
         settings.toggleView()
       }
       
-      
-    
     })
     
-    console.log(user)
   })//end add on load
 
 }(dojo));
-
-/** Converts numeric degrees to radians */
-if (typeof(Number.prototype.toRad) === "undefined") {
-  Number.prototype.toRad = function () {
-    return this * Math.PI / 180;
-  }
-}
-
-/** Converts numeric degrees to radians */
-if (typeof(Number.prototype.toDeg) === "undefined") {
-  Number.prototype.toDeg = function () {
-    var d = 360/(2*Math.PI);
-    return this * d;
-  }
-} 

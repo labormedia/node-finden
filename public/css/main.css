@@ -1,3 +1,6 @@
+@import "dojo/dojo.css";
+@import "dojo/Grid.css";
+@import "dojo/nihiloGrid.css";
 html, body {
   margin: 0;
   padding: 0;
@@ -11,20 +14,17 @@ html, body {
   position:absolute; 
   top:0; 
   right:0; 
-  bottom:0; 
-  
-  background-color:black; 
+  bottom:0;   
+  background-color:#333; 
   z-index: 999; 
   overflow:auto; 
-  color:white; 
-  opacity: 0.6; 
 }
 #settings > div{
 
-  float: left;
-  
-  
+  float: left; 
+   
 }
+
 #block{
 bottom:0;
 left:0;
