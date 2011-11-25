@@ -1,10 +1,4 @@
-/*
 
-$('<div>I am new!</div>').appendTo(oldDomElement)
-same as
-dojo.place('<div>I am new!</div>', oldDomElement, 'last')
-
-*/
 /** Converts numeric degrees to radians */
 if (typeof(Number.prototype.toRad) === "undefined") {
   Number.prototype.toRad = function () {
@@ -37,6 +31,9 @@ var io = io.connect();
       maxZoom: 18, 
       attribution: cloudmadeAttribution
     }),
+    map = new L.Map('map'),
+    pos = new L.LatLng(40.770012,-73.973694),
+    box = dojo.window.getBox(dojo.doc),
     calculate = {
       distance: function( point1, point2 ){
         var lat1 = point1[0], lat2 = point2[0], lon1 = point1[1], lon2 = point2[1],
@@ -107,32 +104,72 @@ var io = io.connect();
       settings: {
         _open: false,
         _memoryStore:  new dojo.store.Memory({data:[]}),
-        toggleView: function(){
-          this._open = !this._open
-        },
         isOpen: function(){
           return this._open
         },
         spawnGrid: function(){
+          console.log(box)
+          var h = box.h - 70;
+          dojo.style(dojo.byId("gridContainer"), "height", "" + h +"px" );
           var m = this._memoryStore
           this._grid = new dojox.grid.DataGrid({
               store: dataStore = dojo.data.ObjectStore({objectStore: m}),
               structure: [
-                  {name:'id', field: 'id', width:'60px;'},
+                  {name:"id", field: "id", width:"60px"},
                   {name:"Name", field:"name", width: "100px"},
                   {name:"Followers", field:"followers", width: "100px"},
                   {name:"Text", field:"text", width: "auto"},
-                  
+                  {name:"Geo", field:"geo", width: "20px"} 
               ]
-          }, "grid"); // make sure you have a target HTML element with this id
+          }, "grid");
           this._grid.startup();
+          this._grid.setSortIndex(0, 0);
         },
-        put: function(o){
+        toggleView:function(w){
+          if(this.isOpen()){
+            dojo.animateProperty({
+              node:"settings",
+              duration: 100,
+              properties: {
+                  width: 0
+              },
+              beforeBegin:function(){
+                var c = map.getCenter();
+                dojo.style(dojo.byId("map"), "right", "0" );
+                map.invalidateSize();
+                map.panTo(c);
+              }
+            }).play();
+            this._open = !this._open
+          }else{
+            dojo.animateProperty({
+              node:"settings",
+              duration: 100,
+              properties: {
+                  width: w
+              },
+              onEnd:function(){
+                var c = map.getCenter();
+                dojo.style(dojo.byId("map"), "right", ""+w+"px" );
+                map.invalidateSize();
+                map.panTo(c);
+              }
+            }).play();
+            this._open = !this._open
+          }
+        },
+        storeTweet: function(o,g){
+          if(g){
+            geo = true
+          }else{
+            geo = false
+          }
           var obj = {
             id:o.id,
             text:o.text,
             name:o.user.screen_name,
-            followers:o.user.followers_count
+            followers:o.user.followers_count,
+            geo:geo
           }
           this._memoryStore.put(obj)
           m = this._memoryStore
@@ -140,8 +177,6 @@ var io = io.connect();
         },
       }
     },
-    map = new L.Map('map'),
-    pos = new L.LatLng(40.770012,-73.973694),
     settings = user.settings;
     
 		map.setView(pos, 13).addLayer(cloudmade);
@@ -189,34 +224,30 @@ var io = io.connect();
       }
     });
     
-    /* connect to the server */
     io.on('mapTweet', function ( tweet ){
-      settings.put(tweet)
       if( tweet.geo ){
-        
+        settings.storeTweet(tweet, true)
         if(user.hasPolygons()){
           var isValid = calculate.pointInPolygon(user.getPolygons(), tweet.geo.coordinates[0], tweet.geo.coordinates[1])
-
           if(isValid){
             var pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1]), markerLocation = pos,
             marker = new L.Marker(markerLocation);
             map.addLayer(marker);
           }else{
             console.log(tweet)
-            
           }
-          
         }
 
       }else{
         console.log(tweet)
-        
+        settings.storeTweet(tweet, false)
       
       }
       
     });
     
     settings.spawnGrid()
+    
     //click handlers
     dojo.connect(dojo.byId('toggle-edit'), 'click', this, function(e){
       user.toggleEdit() 
@@ -237,26 +268,8 @@ var io = io.connect();
     
     dojo.connect(dojo.byId('block'), 'click', this, function(e){
     
-      var view = dojo.window.getBox(dojo.doc);
-
-      if(settings.isOpen()){
-        dojo.animateProperty({
-          node:"settings",
-          properties: {
-              width: 40
-          }
-        }).play();
-        settings.toggleView()
-      }else{
-        dojo.animateProperty({
-          node:"settings",
-          properties: {
-              width: 800
-          }
-        }).play();
-        settings.toggleView()
-      }
-      
+      settings.toggleView(800)
+            
     })
     
   })//end add on load
