@@ -23,6 +23,10 @@ var io = io.connect();
   dojo.require("dojo.store.Memory");
   dojo.require("dojox.grid.DataGrid");
   dojo.require("dojo.data.ObjectStore");
+  dojo.require("dojo.data.ItemFileWriteStore");
+  dojo.require("dijit.form.Button");
+  
+  
   
   dojo.ready(function () {
     var cloudmadeUrl = 'http://{s}.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/997/256/{z}/{x}/{y}.png', 
@@ -104,16 +108,20 @@ var io = io.connect();
       settings: {
         _open: false,
         _memoryStore:  new dojo.store.Memory({data:[]}),
+        _itemStore : new dojo.data.ItemFileWriteStore({
+            data: {
+                identifier : 'id',
+                items: []
+            }
+        }),
         isOpen: function(){
           return this._open
         },
         spawnGrid: function(){
-          console.log(box)
           var h = box.h - 70;
           dojo.style(dojo.byId("gridContainer"), "height", "" + h +"px" );
-          var m = this._memoryStore
           this._grid = new dojox.grid.DataGrid({
-              store: dataStore = dojo.data.ObjectStore({objectStore: m}),
+              store: this._itemStore,
               structure: [
                   {name:"id", field: "id", width:"60px"},
                   {name:"Name", field:"name", width: "100px"},
@@ -171,10 +179,18 @@ var io = io.connect();
             followers:o.user.followers_count,
             geo:geo
           }
-          this._memoryStore.put(obj)
+          
           m = this._memoryStore
-          this._grid.setStore(dataStore = dojo.data.ObjectStore({objectStore: m}))
+          m.put(obj)
+          this.addTweet(obj)
         },
+        addTweet: function(o) {
+          try {
+            this._itemStore.newItem(o)
+          }catch (e) {
+            console.log('error')
+          }  
+       }
       }
     },
     settings = user.settings;
