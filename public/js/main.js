@@ -25,6 +25,8 @@ var io = io.connect();
   dojo.require("dojo.data.ObjectStore");
   dojo.require("dojo.data.ItemFileWriteStore");
   dojo.require("dijit.form.Button");
+  dojo.require("dijit.layout.TabContainer");
+  dojo.require("dijit.layout.ContentPane");
   
   
   
@@ -107,12 +109,13 @@ var io = io.connect();
       },
       settings: {
         _open: false,
+        _activeMarkers: [],
         _memoryStore:  new dojo.store.Memory({data:[]}),
         _itemStore : new dojo.data.ItemFileWriteStore({
-            data: {
-                identifier : 'id',
-                items: []
-            }
+          data: {
+            identifier : 'id',
+            items: []
+          }
         }),
         isOpen: function(){
           return this._open
@@ -123,15 +126,34 @@ var io = io.connect();
           this._grid = new dojox.grid.DataGrid({
               store: this._itemStore,
               structure: [
-                  {name:"id", field: "id", width:"60px"},
                   {name:"Name", field:"name", width: "100px"},
+                  {name:"Name", field:"img", width: "85px", formatter: function(v){
+                    var s = '<img src="'+v+'" style="max-width:80px" />'
+                    return s
+                  }},
                   {name:"Followers", field:"followers", width: "100px"},
-                  {name:"Text", field:"text", width: "auto"},
-                  {name:"Geo", field:"geo", width: "20px"} 
+                  {name:"Text", field:"text", width: "auto"}
               ]
           }, "grid");
           this._grid.startup();
-          this._grid.setSortIndex(0, 0);
+          dojo.connect(this._grid, 'onRowMouseOver', this, function(e){
+            var gridItem = this._grid.getItem(e.rowIndex),
+                m = gridItem.marker[0];
+            if(m){
+              this.addMarkerAndPan(m)
+            }   
+            
+          })
+        },
+        addMarkerAndPan: function(m){
+          this._activeMarkers.push(m)
+          map.addLayer(m)
+          map.panTo(m._latlng)
+        },
+        clearMarkers: function(){
+          dojo.forEach(this._activeMarkers, function(m){
+            map.removeLayer(m)
+          })
         },
         toggleView:function(w){
           if(this.isOpen()){
@@ -166,7 +188,8 @@ var io = io.connect();
             this._open = !this._open
           }
         },
-        storeTweet: function(o,g){
+        storeTweet: function(o,g,m){
+          this._memoryStore.put(o)
           if(g){
             geo = true
           }else{
@@ -177,18 +200,17 @@ var io = io.connect();
             text:o.text,
             name:o.user.screen_name,
             followers:o.user.followers_count,
-            geo:geo
+            img: o.user.profile_image_url,
+            geo:geo,
+            marker: m
           }
-          
-          m = this._memoryStore
-          m.put(obj)
           this.addTweet(obj)
         },
         addTweet: function(o) {
           try {
             this._itemStore.newItem(o)
           }catch (e) {
-            console.log('error')
+            console.log('error adding newItem %o', e)
           }  
        }
       }
@@ -242,12 +264,13 @@ var io = io.connect();
     
     io.on('mapTweet', function ( tweet ){
       if( tweet.geo ){
-        settings.storeTweet(tweet, true)
+        var pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1]), markerLocation = pos,
+        marker = new L.Marker(markerLocation);
+        
+        settings.storeTweet(tweet, true, marker)
         if(user.hasPolygons()){
           var isValid = calculate.pointInPolygon(user.getPolygons(), tweet.geo.coordinates[0], tweet.geo.coordinates[1])
           if(isValid){
-            var pos = new L.LatLng(tweet.geo.coordinates[0],tweet.geo.coordinates[1]), markerLocation = pos,
-            marker = new L.Marker(markerLocation);
             map.addLayer(marker);
           }else{
             console.log(tweet)
@@ -255,9 +278,7 @@ var io = io.connect();
         }
 
       }else{
-        console.log(tweet)
-        settings.storeTweet(tweet, false)
-      
+        settings.storeTweet(tweet, false, marker)
       }
       
     });
@@ -267,6 +288,11 @@ var io = io.connect();
     //click handlers
     dojo.connect(dojo.byId('toggle-edit'), 'click', this, function(e){
       user.toggleEdit() 
+    });
+    
+    //click handlers
+    dojo.connect(dojo.byId('clear-markers'), 'click', this, function(e){
+      settings.clearMarkers() 
     });
     
     dojo.connect(dojo.byId('save-region'), 'click', this, function(e){

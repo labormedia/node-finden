@@ -27,10 +27,10 @@ console.log('Express server listening on port %d', app.address().port);
 
 
 var t = new twitter({
-    consumer_key: '',
-    consumer_secret: '',
-    access_token_key: '',
-    access_token_secret: ''
+    consumer_key: 'fK5TXlVVg17YWPH4slprg',
+    consumer_secret: 'el3tdg7WNVbHZ8UAVph1GG1Ld6nYpzQbxISnhtsCNs',
+    access_token_key: '30547882-S1ORtGzRoUqnZrCXTwOmQGS5FUtrciMbEfZI2jeO0',
+    access_token_secret: '60cCuFBx6RFdCGgO6yFIQtscRrr5ACOpjrK8OppJw'
 });
 
 t.stream('statuses/filter', {'locations':'-74,40,-73,41'} , function( stream ) {
