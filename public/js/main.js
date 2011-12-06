@@ -27,6 +27,7 @@ var io = io.connect();
   dojo.require("dijit.form.Button");
   dojo.require("dijit.layout.TabContainer");
   dojo.require("dijit.layout.ContentPane");
+  dojo.require("dijit.layout.AccordionContainer");
   
   
   
@@ -53,19 +54,23 @@ var io = io.connect();
         return d
       },
       pointInPolygon: function(o,lat,lon){
-        var inPoly=false;
+        var polyPoint = {
+          isInside: false,
+          sanitize:[]
+        };
         dojo.forEach(o, function(p, k) {
           var i,points = p._latlngs,j=points.length-1
           for (i=0; i<points.length; i++) {
             if (points[i].lng<lon && points[j].lng>=lon || points[j].lng<lon && points[i].lng>=lon){
               if (points[i].lat + (lon-points[i].lng)/(points[j].lng-points[i].lng)*(points[j].lat - points[i].lat)<lat){
-                inPoly=!inPoly; 
+                polyPoint.isInside =!polyPoint.isInside;
+                polyPoint.sanitize.push({"index":p._index,"isInside":polyPoint.isInside})
               }
             }
             j=i; 
           }
         })
-        return inPoly;
+        return polyPoint;
       }
     },
     user = {
@@ -110,6 +115,8 @@ var io = io.connect();
       settings: {
         _open: false,
         _activeMarkers: [],
+        _itemStores: [],
+        _regionalText:[],
         _memoryStore:  new dojo.store.Memory({data:[]}),
         _itemStore : new dojo.data.ItemFileWriteStore({
           data: {
@@ -117,14 +124,30 @@ var io = io.connect();
             items: []
           }
         }),
+        _cpCounter: 0,
         isOpen: function(){
           return this._open
         },
-        spawnGrid: function(){
-          var h = box.h - 70;
+        spawnItemStore: function(index){
+          var store = new dojo.data.ItemFileWriteStore({
+            data: {
+              identifier : 'id',
+              items: []
+            }
+          })
+          var obj = {
+            index: index,
+            store: store
+          }
+          this._itemStores.push(obj)
+          console.log(this._itemStores)
+          return store
+        },
+        spawnGrid: function(id, index){
+          var h = box.h - 100;
           dojo.style(dojo.byId("gridContainer"), "height", "" + h +"px" );
-          this._grid = new dojox.grid.DataGrid({
-              store: this._itemStore,
+          var grid = new dojox.grid.DataGrid({
+              store: this.spawnItemStore(index),
               structure: [
                   {name:"Name", field:"name", width: "100px"},
                   {name:"Name", field:"img", width: "85px", formatter: function(v){
@@ -134,20 +157,60 @@ var io = io.connect();
                   {name:"Followers", field:"followers", width: "100px"},
                   {name:"Text", field:"text", width: "auto"}
               ]
-          }, "grid");
-          this._grid.startup();
-          dojo.connect(this._grid, 'onRowMouseOver', this, function(e){
-            var gridItem = this._grid.getItem(e.rowIndex),
+          }, id);
+          grid.startup();
+          dojo.connect(grid, 'onRowMouseOver', this, function(e){
+            var gridItem = grid.getItem(e.rowIndex),
                 m = gridItem.marker[0];
             if(m){
-              this.addMarkerAndPan(m)
-            }   
+              this.pan(m)
+            }  
             
           })
         },
-        addMarkerAndPan: function(m){
-          this._activeMarkers.push(m)
-          map.addLayer(m)
+        spawnTab: function(){
+          var h = box.h - 70,
+          counter = this._cpCounter + 1,
+          title = 'region ' + counter,
+          accordianId = 'region'+counter+'Accordian',
+          content = '<div id="'+accordianId+'"></div>';
+          this._cpCounter++
+          if(!this._tc){
+            this._tc = new dijit.layout.TabContainer({
+              style: "height: "+h+"px; width: 100%;"
+            },"tc"),
+            cp = new dijit.layout.ContentPane({
+              title: title,
+              content: content
+            });
+            this._tc.addChild(cp);
+            this._tc.startup() 
+          }else{
+            var cp = new dijit.layout.ContentPane({
+              title: title,
+              content: content
+            });
+            this._tc.addChild(cp);
+          }
+          var aContainer = new dijit.layout.AccordionContainer({
+              style: "height: "+ h - 30 +"px"
+          },accordianId);
+          aContainer.addChild(new dijit.layout.ContentPane({
+            title: 'Tweets',
+            content: '<div id="'+accordianId+'TweetGrid"></div>'
+          }));
+          aContainer.addChild(new dijit.layout.ContentPane({
+            title: 'Keywords',
+            content: '<div id="'+accordianId+'KeywordGrid"></div>'
+          }));
+          aContainer.addChild(new dijit.layout.ContentPane({
+            title: 'Articles',
+            content: '<div id="'+accordianId+'ArticlesGrid"></div>'
+          }));
+          aContainer.startup();
+          this.spawnGrid(''+accordianId+'TweetGrid', counter)
+        },
+        pan: function(m){
           map.panTo(m._latlng)
         },
         clearMarkers: function(){
@@ -188,13 +251,14 @@ var io = io.connect();
             this._open = !this._open
           }
         },
-        storeTweet: function(o,g,m){
+        storeTweet: function(o,g,m,i){
           this._memoryStore.put(o)
           if(g){
             geo = true
           }else{
             geo = false
           }
+          
           var obj = {
             id:o.id,
             text:o.text,
@@ -204,14 +268,50 @@ var io = io.connect();
             geo:geo,
             marker: m
           }
-          this.addTweet(obj)
+          this.addTweet(obj, i)
         },
-        addTweet: function(o) {
-          try {
-            this._itemStore.newItem(o)
-          }catch (e) {
-            console.log('error adding newItem %o', e)
-          }  
+        updateText: function(text, index){
+          var hasTextObj = false,
+          thisRegionsText;
+          dojo.forEach(this._regionalText, function(r){
+            if(r.id == index){
+              hasTextObj = true
+              thisRegionsText = r
+            }
+          })
+          if(hasTextObj){
+            thisRegionsText.text.push(text)
+            console.log(thisRegionsText.text.join(""))
+          }else{
+
+            var obj = {
+              id: index, 
+              text: []
+            }
+            obj.text.push(text)
+
+            this._regionalText.push(obj)
+          }
+
+          console.log(this._regionalText.join(" "))
+          
+        },
+        addTweet: function(o, i) {
+          var s;
+          dojo.forEach(this._itemStores,function(store){
+            if(store.index === i){
+              s = store.store
+              console.log('found a store')
+              try {
+                settings.updateText(o.text, i)
+                s.newItem(o)
+              }catch (e) {
+                console.log('error adding newItem %o', e)
+              } 
+
+            }
+          })
+           
        }
       }
     },
@@ -238,6 +338,7 @@ var io = io.connect();
     map.addPolygon = function( p ){
       var polygon = new L.Polygon(p, {color: 'blue'} );
       this.addLayer(polygon)
+      polygon._index = user.getPolygons().length + 1;
       return polygon
     };
     
@@ -269,11 +370,20 @@ var io = io.connect();
         
         settings.storeTweet(tweet, true, marker)
         if(user.hasPolygons()){
-          var isValid = calculate.pointInPolygon(user.getPolygons(), tweet.geo.coordinates[0], tweet.geo.coordinates[1])
-          if(isValid){
+          var point = calculate.pointInPolygon(user.getPolygons(), tweet.geo.coordinates[0], tweet.geo.coordinates[1])
+          if(point.isInside){
             map.addLayer(marker);
+            var realIndex = [];
+            dojo.forEach(point.sanitize, function(p, j){
+              if(p.isInside){
+                realIndex.push(p.index)
+              }
+              if(j === point.sanitize.length - 1){
+                settings.storeTweet(tweet, true, marker, realIndex[0])
+              }
+            })
           }else{
-            console.log(tweet)
+            //console.log(tweet)
           }
         }
 
@@ -283,7 +393,7 @@ var io = io.connect();
       
     });
     
-    settings.spawnGrid()
+    //settings.spawnGrid()
     
     //click handlers
     dojo.connect(dojo.byId('toggle-edit'), 'click', this, function(e){
@@ -304,13 +414,14 @@ var io = io.connect();
           var polygon = map.addPolygon(polyPoints)
           user.clearHistory()
           user.storePolygon( polygon )
+          settings.spawnTab()
         }
       });
     })
     
     dojo.connect(dojo.byId('block'), 'click', this, function(e){
     
-      settings.toggleView(800)
+      settings.toggleView(520)
             
     })
     

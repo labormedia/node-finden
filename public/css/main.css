@@ -53,6 +53,7 @@ html, body {
   left:0;
   height:2em;
   width:2em;
+  z-index:99999;
   border: 1px solid black;
   position:absolute;
 }
@@ -78,4 +79,10 @@ html, body {
   width:100px;
   padding:5px;
   background-color: white; 
+}
+
+#tabContainer{
+  margin:0 10px 0 10px;
+  width:500px;
+  height:100%;
 }
